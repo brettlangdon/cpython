@@ -1380,6 +1380,151 @@ sys_get_asyncgen_hooks_impl(PyObject *module)
 }
 
 
+static PyTypeObject AsyncMonitoringHooksType;
+
+PyDoc_STRVAR(async_monitoring_hooks_doc,
+"async_monitoring_hooks\n\
+\n\
+A named tuple providing information about asynchronous\n\
+monitoring hooks.  The attributes are read only.");
+
+static PyStructSequence_Field async_monitoring_hooks_fields[] = {
+    {"task_register", "Hook to monitor when asyncio tasks are registered"},
+    {"task_enter", "Hook to monitor when asyncio tasks are entered"},
+    {"task_leave", "Hook to monitor when asyncio tasks are left"},
+    {"task_unregister", "Hook to monitor when asyncio tasks are unregistered"},
+    {0}
+};
+
+static PyStructSequence_Desc async_monitoring_hooks_desc = {
+    "async_monitoring_hooks",          /* name */
+    async_monitoring_hooks_doc,        /* doc */
+    async_monitoring_hooks_fields ,    /* fields */
+    4
+};
+
+static PyObject *
+sys_set_async_monitoring_hooks(PyObject *self, PyObject *args, PyObject *kw)
+{
+  static char *keywords[] = {"task_register", "task_enter", "task_leave", "task_unregister", NULL};
+    PyObject *task_register = NULL;
+    PyObject *task_enter = NULL;
+    PyObject *task_leave = NULL;
+    PyObject *task_unregister = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kw, "|OOOO", keywords,
+            &task_register, &task_enter, &task_leave, &task_unregister)) {
+        return NULL;
+    }
+
+    if (task_leave && task_leave != Py_None) {
+        if (!PyCallable_Check(task_leave)) {
+            PyErr_Format(PyExc_TypeError,
+                         "callable task_leave expected, got %.50s",
+                         Py_TYPE(task_leave)->tp_name);
+            return NULL;
+        }
+        if (_PyEval_SetAsyncMonitoringLeave(task_leave) < 0) {
+            return NULL;
+        }
+    }
+    else if (task_leave == Py_None && _PyEval_SetAsyncMonitoringLeave(NULL) < 0) {
+        return NULL;
+    }
+
+    if (task_enter && task_enter != Py_None) {
+        if (!PyCallable_Check(task_enter)) {
+            PyErr_Format(PyExc_TypeError,
+                         "callable task_enter expected, got %.50s",
+                         Py_TYPE(task_enter)->tp_name);
+            return NULL;
+        }
+        if (_PyEval_SetAsyncMonitoringEnter(task_enter) < 0) {
+            return NULL;
+        }
+    }
+    else if (task_enter == Py_None && _PyEval_SetAsyncMonitoringEnter(NULL) < 0) {
+        return NULL;
+    }
+
+    if (task_register && task_register != Py_None) {
+        if (!PyCallable_Check(task_register)) {
+            PyErr_Format(PyExc_TypeError,
+                         "callable task_register expected, got %.50s",
+                         Py_TYPE(task_register)->tp_name);
+            return NULL;
+        }
+        if (_PyEval_SetAsyncMonitoringRegister(task_register) < 0) {
+            return NULL;
+        }
+    }
+    else if (task_register == Py_None && _PyEval_SetAsyncMonitoringRegister(NULL) < 0) {
+        return NULL;
+    }
+
+    if (task_unregister && task_unregister != Py_None) {
+        if (!PyCallable_Check(task_unregister)) {
+            PyErr_Format(PyExc_TypeError,
+                         "callable task_unregister expected, got %.50s",
+                         Py_TYPE(task_unregister)->tp_name);
+            return NULL;
+        }
+        if (_PyEval_SetAsyncMonitoringUnregister(task_unregister) < 0) {
+            return NULL;
+        }
+    }
+    else if (task_unregister == Py_None && _PyEval_SetAsyncMonitoringUnregister(NULL) < 0) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(set_async_monitoring_hooks_doc,
+"set_async_monitoring_hooks(* [, task_register] [, task_enter] [, task_leave] [, task_unregister])\n\
+\n\
+Set hooks to monitor when asyncio task lifecycle events."
+);
+
+static PyObject *
+sys_get_async_monitoring_hooks_impl(PyObject *module)
+{
+    PyObject *res;
+    PyObject *task_register = _PyEval_GetAsyncMonitoringRegister();
+    PyObject *task_enter = _PyEval_GetAsyncMonitoringEnter();
+    PyObject *task_leave = _PyEval_GetAsyncMonitoringLeave();
+    PyObject *task_unregister = _PyEval_GetAsyncMonitoringUnregister();
+
+    res = PyStructSequence_New(&AsyncMonitoringHooksType);
+    if (res == NULL) {
+        return NULL;
+    }
+
+    if (task_register == NULL) {
+        task_register = Py_None;
+    }
+
+    if (task_unregister == NULL) {
+        task_unregister = Py_None;
+    }
+
+    if (task_enter == NULL) {
+        task_enter = Py_None;
+    }
+
+    if (task_leave == NULL) {
+        task_leave = Py_None;
+    }
+
+    PyStructSequence_SET_ITEM(res, 0, Py_NewRef(task_register));
+    PyStructSequence_SET_ITEM(res, 1, Py_NewRef(task_enter));
+    PyStructSequence_SET_ITEM(res, 2, Py_NewRef(task_leave));
+    PyStructSequence_SET_ITEM(res, 3, Py_NewRef(task_unregister));
+    return res;
+}
+
+
 static PyTypeObject Hash_InfoType;
 
 PyDoc_STRVAR(hash_info_doc,
@@ -2296,6 +2441,9 @@ static PyMethodDef sys_methods[] = {
     {"set_asyncgen_hooks", _PyCFunction_CAST(sys_set_asyncgen_hooks),
      METH_VARARGS | METH_KEYWORDS, set_asyncgen_hooks_doc},
     SYS_GET_ASYNCGEN_HOOKS_METHODDEF
+    {"set_async_monitoring_hooks", _PyCFunction_CAST(sys_set_async_monitoring_hooks),
+     METH_VARARGS | METH_KEYWORDS, set_async_monitoring_hooks_doc},
+    SYS_GET_ASYNC_MONITORING_HOOKS_METHODDEF
     SYS_GETANDROIDAPILEVEL_METHODDEF
     SYS_ACTIVATE_STACK_TRAMPOLINE_METHODDEF
     SYS_DEACTIVATE_STACK_TRAMPOLINE_METHODDEF
@@ -3239,6 +3387,12 @@ _PySys_InitCore(PyThreadState *tstate, PyObject *sysdict)
         goto type_init_failed;
     }
 
+    /* initialize async_monitoring_hooks */
+    if (_PyStructSequence_InitBuiltin(interp, &AsyncMonitoringHooksType,
+                                      &async_monitoring_hooks_desc) < 0) {
+        goto type_init_failed;
+    }
+
 #ifdef __EMSCRIPTEN__
     if (EmscriptenInfoType == NULL) {
         EmscriptenInfoType = PyStructSequence_NewType(&emscripten_info_desc);
@@ -3506,6 +3660,7 @@ _PySys_FiniTypes(PyInterpreterState *interp)
 #endif
     _PyStructSequence_FiniBuiltin(interp, &Hash_InfoType);
     _PyStructSequence_FiniBuiltin(interp, &AsyncGenHooksType);
+    _PyStructSequence_FiniBuiltin(interp, &AsyncMonitoringHooksType);
 #ifdef __EMSCRIPTEN__
     if (_Py_IsMainInterpreter(interp)) {
         Py_CLEAR(EmscriptenInfoType);

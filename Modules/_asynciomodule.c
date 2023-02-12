@@ -1951,6 +1951,22 @@ register_task(asyncio_state *state, PyObject *task)
         return -1;
     }
     Py_DECREF(res);
+
+    PyThreadState *tstate = _PyThreadState_GET();
+    PyObject *registerhook = tstate->async_monitoring_register;
+    if (registerhook) {
+        PyObject *res, *args;
+        args = Py_BuildValue("(O)", task);
+        Py_INCREF(registerhook);
+        res = PyObject_Call(registerhook, args, NULL);
+        Py_DECREF(args);
+        Py_DECREF(registerhook);
+
+        if (res != NULL) {
+            Py_DECREF(res);
+        }
+    }
+
     return 0;
 }
 
@@ -1969,6 +1985,22 @@ unregister_task(asyncio_state *state, PyObject *task)
         return -1;
     }
     Py_DECREF(res);
+
+
+    PyThreadState *tstate = _PyThreadState_GET();
+    PyObject *unregisterhook = tstate->async_monitoring_unregister;
+    if (unregisterhook) {
+        PyObject *res, *args;
+        args = Py_BuildValue("(O)", task);
+        Py_INCREF(unregisterhook);
+        res = PyObject_Call(unregisterhook, args, NULL);
+        Py_DECREF(args);
+        Py_DECREF(unregisterhook);
+
+        if (res != NULL) {
+            Py_DECREF(res);
+        }
+    }
     return 0;
 }
 
@@ -1981,7 +2013,7 @@ unregister_eager_task(asyncio_state *state, PyObject *task)
 static int
 enter_task(asyncio_state *state, PyObject *loop, PyObject *task)
 {
-    PyObject *item;
+    PyObject *item, *enterhook;
     Py_hash_t hash;
     hash = PyObject_Hash(loop);
     if (hash == -1) {
@@ -2001,6 +2033,22 @@ enter_task(asyncio_state *state, PyObject *loop, PyObject *task)
     if (PyErr_Occurred()) {
         return -1;
     }
+
+    PyThreadState *tstate = _PyThreadState_GET();
+    enterhook = tstate->async_monitoring_enter;
+    if (enterhook) {
+        PyObject *res, *args;
+        args = Py_BuildValue("(O)", task);
+        Py_INCREF(enterhook);
+        res = PyObject_Call(enterhook, args, NULL);
+        Py_DECREF(args);
+        Py_DECREF(enterhook);
+
+        if (res != NULL) {
+            Py_DECREF(res);
+        }
+    }
+
     return _PyDict_SetItem_KnownHash(state->current_tasks, loop, task, hash);
 }
 
@@ -2009,7 +2057,7 @@ static int
 leave_task(asyncio_state *state, PyObject *loop, PyObject *task)
 /*[clinic end generated code: output=0ebf6db4b858fb41 input=51296a46313d1ad8]*/
 {
-    PyObject *item;
+    PyObject *item, *leavehook;
     Py_hash_t hash;
     hash = PyObject_Hash(loop);
     if (hash == -1) {
@@ -2027,6 +2075,22 @@ leave_task(asyncio_state *state, PyObject *loop, PyObject *task)
             task, item, NULL);
         return -1;
     }
+
+    PyThreadState *tstate = _PyThreadState_GET();
+    leavehook = tstate->async_monitoring_leave;
+    if (leavehook) {
+        PyObject *res, *args;
+        args = Py_BuildValue("(O)", task);
+        Py_INCREF(leavehook);
+        res = PyObject_Call(leavehook, args, NULL);
+        Py_DECREF(args);
+        Py_DECREF(leavehook);
+
+        if (res != NULL) {
+            Py_DECREF(res);
+        }
+    }
+
     return _PyDict_DelItem_KnownHash(state->current_tasks, loop, hash);
 }
 

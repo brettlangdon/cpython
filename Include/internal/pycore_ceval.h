@@ -44,6 +44,18 @@ extern PyObject* _PyEval_GetAsyncGenFinalizer(void);
 extern int _PyEval_SetAsyncGenFirstiter(PyObject *);
 extern int _PyEval_SetAsyncGenFinalizer(PyObject *);
 
+// Used by sys.get_async_monitoring_hooks()
+extern PyObject* _PyEval_GetAsyncMonitoringEnter(void);
+extern PyObject* _PyEval_GetAsyncMonitoringLeave(void);
+extern PyObject* _PyEval_GetAsyncMonitoringRegister(void);
+extern PyObject* _PyEval_GetAsyncMonitoringUnregister(void);
+
+// Used by sys.set_async_monitoring_hooks()
+extern int _PyEval_SetAsyncMonitoringEnter(PyObject *);
+extern int _PyEval_SetAsyncMonitoringLeave(PyObject *);
+extern int _PyEval_SetAsyncMonitoringRegister(PyObject *);
+extern int _PyEval_SetAsyncMonitoringUnregister(PyObject *);
+
 // Used by sys.get_coroutine_origin_tracking_depth()
 // and sys.set_coroutine_origin_tracking_depth()
 extern int _PyEval_GetCoroutineOriginTrackingDepth(void);
