@@ -1057,6 +1057,11 @@ PyThreadState_Clear(PyThreadState *tstate)
     Py_CLEAR(tstate->async_gen_firstiter);
     Py_CLEAR(tstate->async_gen_finalizer);
 
+    Py_CLEAR(tstate->async_monitoring_register);
+    Py_CLEAR(tstate->async_monitoring_enter);
+    Py_CLEAR(tstate->async_monitoring_leave);
+    Py_CLEAR(tstate->async_monitoring_unregister);
+
     Py_CLEAR(tstate->context);
 
     if (tstate->on_delete != NULL) {

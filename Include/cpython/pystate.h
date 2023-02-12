@@ -171,6 +171,11 @@ struct _ts {
     PyObject *async_gen_firstiter;
     PyObject *async_gen_finalizer;
 
+    PyObject *async_monitoring_register;
+    PyObject *async_monitoring_enter;
+    PyObject *async_monitoring_leave;
+    PyObject *async_monitoring_unregister;
+
     PyObject *context;
     uint64_t context_ver;
 

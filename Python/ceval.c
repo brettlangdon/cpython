@@ -7111,6 +7111,86 @@ _PyEval_GetAsyncGenFinalizer(void)
     return tstate->async_gen_finalizer;
 }
 
+int
+_PyEval_SetAsyncMonitoringLeave(PyObject *hook)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    if (_PySys_Audit(tstate, "sys.set_async_monitoring_leave", NULL) < 0) {
+        return -1;
+    }
+
+    Py_XSETREF(tstate->async_monitoring_leave, Py_XNewRef(hook));
+    return 0;
+}
+
+PyObject *
+_PyEval_GetAsyncMonitoringLeave(void)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    return tstate->async_monitoring_leave;
+}
+
+int
+_PyEval_SetAsyncMonitoringRegister(PyObject *hook)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    if (_PySys_Audit(tstate, "sys.set_async_monitoring_register", NULL) < 0) {
+        return -1;
+    }
+
+    Py_XSETREF(tstate->async_monitoring_register, Py_XNewRef(hook));
+    return 0;
+}
+
+PyObject *
+_PyEval_GetAsyncMonitoringRegister(void)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    return tstate->async_monitoring_register;
+}
+
+int
+_PyEval_SetAsyncMonitoringUnregister(PyObject *hook)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    if (_PySys_Audit(tstate, "sys.set_async_monitoring_unregister", NULL) < 0) {
+        return -1;
+    }
+
+    Py_XSETREF(tstate->async_monitoring_unregister, Py_XNewRef(hook));
+    return 0;
+}
+
+PyObject *
+_PyEval_GetAsyncMonitoringUnregister(void)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    return tstate->async_monitoring_unregister;
+}
+
+int
+_PyEval_SetAsyncMonitoringEnter(PyObject *hook)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    if (_PySys_Audit(tstate, "sys.set_async_monitoring_onenter", NULL) < 0) {
+        return -1;
+    }
+
+    Py_XSETREF(tstate->async_monitoring_enter, Py_XNewRef(hook));
+    return 0;
+}
+
+PyObject *
+_PyEval_GetAsyncMonitoringEnter(void)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    return tstate->async_monitoring_enter;
+}
+
 _PyInterpreterFrame *
 _PyEval_GetFrame(void)
 {

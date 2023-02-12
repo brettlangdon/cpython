@@ -492,6 +492,27 @@ sys_get_asyncgen_hooks(PyObject *module, PyObject *Py_UNUSED(ignored))
     return sys_get_asyncgen_hooks_impl(module);
 }
 
+
+PyDoc_STRVAR(sys_get_async_monitoring_hooks__doc__,
+"get_async_monitoring_hooks($module, /)\n"
+"--\n"
+"\n"
+"Return the installed asynchronous monitoring hooks.\n"
+"\n"
+"This returns a namedtuple of the form (task_enter, task_leave).");
+
+#define SYS_GET_ASYNC_MONITORING_HOOKS_METHODDEF    \
+    {"get_async_monitoring_hooks", (PyCFunction)sys_get_async_monitoring_hooks, METH_NOARGS, sys_get_async_monitoring_hooks__doc__},
+
+static PyObject *
+sys_get_async_monitoring_hooks_impl(PyObject *module);
+
+static PyObject *
+sys_get_async_monitoring_hooks(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return sys_get_async_monitoring_hooks_impl(module);
+}
+
 PyDoc_STRVAR(sys_getrecursionlimit__doc__,
 "getrecursionlimit($module, /)\n"
 "--\n"
