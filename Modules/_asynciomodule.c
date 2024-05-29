@@ -1976,12 +1976,21 @@ register_task(asyncio_state *state, PyObject *task)
         return -1;
     }
     Py_DECREF(res);
+
+    if (PySys_Audit("asyncio.task.register", "O", task) < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
 static int
 register_eager_task(asyncio_state *state, PyObject *task)
 {
+    if (PySys_Audit("asyncio.task.register", "O", task) < 0) {
+        return -1;
+    }
+
     return PySet_Add(state->eager_tasks, task);
 }
 
@@ -1994,12 +2003,21 @@ unregister_task(asyncio_state *state, PyObject *task)
         return -1;
     }
     Py_DECREF(res);
+
+    if (PySys_Audit("asyncio.task.unregister", "O", task) < 0) {
+        return -1;
+    }
+
     return 0;
 }
 
 static int
 unregister_eager_task(asyncio_state *state, PyObject *task)
 {
+    if (PySys_Audit("asyncio.task.unregister", "O", task) < 0) {
+        return -1;
+    }
+
     return PySet_Discard(state->eager_tasks, task);
 }
 
@@ -2026,6 +2044,11 @@ enter_task(asyncio_state *state, PyObject *loop, PyObject *task)
     if (PyErr_Occurred()) {
         return -1;
     }
+
+    if (PySys_Audit("asyncio.task.enter", "O", task) < 0) {
+        return -1;
+    }
+
     return _PyDict_SetItem_KnownHash(state->current_tasks, loop, task, hash);
 }
 
@@ -2052,6 +2075,11 @@ leave_task(asyncio_state *state, PyObject *loop, PyObject *task)
             task, item, NULL);
         return -1;
     }
+
+    if (PySys_Audit("asyncio.task.leave", "O", task) < 0) {
+        return -1;
+    }
+
     return _PyDict_DelItem_KnownHash(state->current_tasks, loop, hash);
 }
 
