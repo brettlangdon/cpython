@@ -5,6 +5,11 @@
 #include "pycore_initconfig.h"    // _PyStatus_OK()
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include <stddef.h>               // offsetof()
+/* DATADOG */
+#include <signal.h>
+#include <stdlib.h>
+#include <sys/uio.h>
+/* END DATADOG */
 
 /*
 This file provides an implementation of an immutable mapping using the
@@ -395,6 +400,106 @@ _hamt_node_array_validate(void *obj_raw)
 #endif
 
 
+/* DATADOG */
+PyHamtNode_Bitmap *_dd_current_bitmap_node = NULL;
+struct sigaction *_dd_sigaction = NULL;
+struct sigaction *_dd_old_sigaction = NULL;
+
+int
+_dd_is_ptr_bad(void *ptr)
+{
+    // only checks non-NULL pointers
+    if (ptr == NULL) {
+        return 0;
+    }
+    static char buf[16] = {0};
+    struct iovec local[1];
+    struct iovec remote[1];
+    local[0].iov_base = buf;
+    local[0].iov_len = sizeof(buf);
+    remote[0].iov_base = ptr;
+    remote[0].iov_len = sizeof(void *);
+    ssize_t nread = process_vm_readv(getpid(), local, 1, remote, 1, 0);
+    if (nread == -1 || nread != sizeof(void *)) {
+        return 1;
+    }
+    return 0;
+}
+
+static void
+_dd_dump_hamt_bitmap_node(PyHamtNode_Bitmap *node)
+{
+
+    fprintf(stderr, "--- DATADOG ---\n");
+    fflush(stderr);
+
+    if (_dd_is_ptr_bad(node) > 0)
+    {
+        fprintf(stderr, "PyHamtNode_Bitmap pointer is bad\n");
+        fflush(stderr);
+        return;
+    }
+
+    Py_ssize_t l = Py_SIZE(node);
+    fprintf(stderr, "PyHamtNode_Bitmap(%zd) at %p:\n", Py_SIZE(node), node);
+    fflush(stderr);
+
+    // The Bitmap will always be an even number:
+    // [PyContextVar* key][PyObject* value][key][value]...
+    Py_ssize_t i = 0;
+    for (i = 0; i < l; i += 1)
+    {
+        PyObject *v = node->b_array[i];
+        int is_bad = _dd_is_ptr_bad(v);
+        // Separate printing index + pointer from the object repr to ensure we get some data if something goes wrong
+        fprintf(stderr, "  %zd: (%p, %d) ", i, v, is_bad);
+        fflush(stderr);
+        // PyObject_Repr will check for NULL
+        fprintf(stderr, "%s\n", PyUnicode_AsUTF8(PyObject_Repr(v)));
+        fflush(stderr);
+    }
+    fprintf(stderr, "--- END DATADOG ---\n");
+    fflush(stderr);
+}
+
+static void
+_dd_sigsegv_handler(int signum, siginfo_t *info, void *ucontext)
+{
+    if (_dd_current_bitmap_node != NULL)
+    {
+        PyHamtNode_Bitmap *node = _dd_current_bitmap_node;
+        _dd_current_bitmap_node = NULL;
+        _dd_dump_hamt_bitmap_node(node);
+    }
+
+    if (_dd_old_sigaction != NULL)
+    {
+        if(_dd_old_sigaction->sa_sigaction)
+        {
+            return _dd_old_sigaction->sa_sigaction(signum, info, ucontext);
+        }
+
+        if(_dd_old_sigaction->sa_handler)
+        {
+            return _dd_old_sigaction->sa_handler(signum);
+        }
+        else if(_dd_old_sigaction->sa_handler == SIG_DFL)
+        {
+            signal(SIGSEGV, SIG_DFL);
+            raise(SIGSEGV);
+        }
+    }
+    else
+    {
+        signal(SIGSEGV, SIG_DFL);
+        raise(SIGSEGV);
+    }
+    exit(EXIT_FAILURE);
+}
+
+/* END DATADOG */
+
+
 /* Returns -1 on error */
 static inline int32_t
 hamt_hash(PyObject *o)
@@ -572,20 +677,59 @@ hamt_node_bitmap_clone(PyHamtNode_Bitmap *node)
 {
     /* Clone a bitmap node; return a new one with the same child notes. */
 
+    /* DATADOG */
+    if (_dd_current_bitmap_node != NULL)
+    {
+        fprintf(stderr, "DATADOG: Cloning PyHamtNode_Bitmap(%p) when we are already cloning PyHamtNode_Bitmap(%p)\n", node, _dd_current_bitmap_node);
+        fflush(stderr);
+    }
+    _dd_current_bitmap_node = node;
+    if (_dd_sigaction == NULL) {
+        if (_dd_old_sigaction == NULL) {
+          sigaction(SIGSEGV, NULL, _dd_old_sigaction);
+        }
+        _dd_sigaction = &(struct sigaction){0};
+        _dd_sigaction->sa_sigaction = _dd_sigsegv_handler;
+        _dd_sigaction->sa_flags = 0;
+        _dd_sigaction->sa_flags = SA_SIGINFO | SA_NODEFER;
+        sigemptyset(&_dd_sigaction->sa_mask);
+        sigaction(SIGSEGV, _dd_sigaction, NULL);
+    }
+    /* END DATADOG */
+
     PyHamtNode_Bitmap *clone;
     Py_ssize_t i;
 
     clone = (PyHamtNode_Bitmap *)hamt_node_bitmap_new(Py_SIZE(node));
     if (clone == NULL) {
+        /* DATADOG */
+        _dd_current_bitmap_node = NULL;
+        /* END DATADOG */
         return NULL;
     }
 
     for (i = 0; i < Py_SIZE(node); i++) {
+        /* DATADOG */
+        if (Py_SIZE(node) != Py_SIZE(clone))
+        {
+            fprintf(stderr, "DATADOG: PyHamtNode_Bitmap(%p) size changed during clone, from %zd to %zd\n", node, Py_SIZE(clone), Py_SIZE(node));
+            fflush(stderr);
+        }
+        if (_dd_is_ptr_bad(node->b_array[i]))
+        {
+            // We are likely going to segfault and our segfault handler will try to dump the contents of this PyHamtNode_Bitmap
+            fprintf(stderr, "DATADOG: PyHamtNode_Bitmap(%p) is trying to clone a bad pointer (pointer: %p, index: %zd)\n", node, node->b_array[i], i);
+            fflush(stderr);
+        }
+        /* END DATADOG */
         Py_XINCREF(node->b_array[i]);
         clone->b_array[i] = node->b_array[i];
     }
 
     clone->b_bitmap = node->b_bitmap;
+    /* DATADOG */
+    _dd_current_bitmap_node = NULL;
+    /* END DATADOG */
     return clone;
 }
 
