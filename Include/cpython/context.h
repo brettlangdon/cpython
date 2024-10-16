@@ -70,6 +70,9 @@ PyAPI_FUNC(int) PyContextVar_Reset(PyObject *var, PyObject *token);
 /* This method is exposed only for CPython tests. Don not use it. */
 PyAPI_FUNC(PyObject *) _PyContext_NewHamtForTests(void);
 
+/* This method is exposed only for CPython tests. Don not use it. */
+PyAPI_FUNC(PyObject *) _PyContext_GetCurrentHamt(void);
+
 
 #ifdef __cplusplus
 }

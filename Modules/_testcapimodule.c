@@ -5560,6 +5560,13 @@ new_hamt(PyObject *self, PyObject *args)
 }
 
 
+static PyObject*
+current_hamt(PyObject *self, PyObject *args)
+{
+    return _PyContext_GetCurrentHamt();
+}
+
+
 /* def bad_get(self, obj, cls):
        cls()
        return repr(self)
@@ -6785,6 +6792,7 @@ static PyMethodDef TestMethods[] = {
     {"sequence_del_slice", sequence_del_slice, METH_VARARGS},
     {"test_pythread_tss_key_state", test_pythread_tss_key_state, METH_VARARGS},
     {"hamt", new_hamt, METH_NOARGS},
+    {"hamt_current", current_hamt, METH_NOARGS},
     {"bad_get", _PyCFunction_CAST(bad_get), METH_FASTCALL},
 #ifdef Py_REF_DEBUG
     {"negative_refcount", negative_refcount, METH_NOARGS},

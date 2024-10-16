@@ -80,6 +80,26 @@ _PyContext_NewHamtForTests(void)
     return (PyObject *)_PyHamt_New();
 }
 
+PyObject *
+_PyContext_GetCurrentHamt(void)
+{
+    PyThreadState *ts = _PyThreadState_GET();
+    if (ts == NULL) {
+        Py_RETURN_NONE;
+    }
+    if (ts->context == NULL) {
+        Py_RETURN_NONE;
+    }
+    PyContext *ctx = (PyContext*)ts->context;
+    ENSURE_Context(ctx, NULL)
+    PyHamtObject *hamt = ctx->ctx_vars;
+    if (hamt == NULL) {
+        Py_RETURN_NONE;
+    }
+    Py_XINCREF(hamt);
+    return (PyObject*)hamt;
+}
+
 
 PyObject *
 PyContext_New(void)
